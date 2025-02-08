@@ -4,28 +4,14 @@ import numpy as np
 from dm_control import mujoco
 from dm_control.rl import control
 from gym_aloha.tasks.sim import TransferCubeTask, BOX_POSE
-from gym_aloha.constants import START_ARM_POSE, DT, ASSETS_DIR as ALOHA_ASSETS_DIR
+from gym_aloha.constants import START_ARM_POSE, DT
 
 class CustomTransferTask(TransferCubeTask):
     """Custom task that uses a water tank object instead of a cube."""
     
-    def __init__(self, object_file: str, object_scale: float = 0.5, 
-                 object_pos: np.ndarray = np.array([0.5, 0.0, 0.1]),
-                 object_euler: np.ndarray = np.array([0, 0, 0]),
-                 random=None):
-        # Initialize the base task first
+    def __init__(self, random=None):
         super().__init__(random=random)
-        
-        self.object_file = object_file
-        self.object_scale = object_scale
-        self.object_pos = object_pos
-        self.object_euler = object_euler
-        
-        # Set initial box pose (position and orientation)
-        BOX_POSE[0] = np.concatenate([
-            self.object_pos,  # Position
-            np.array([1, 0, 0, 0])  # Quaternion for orientation (w, x, y, z)
-        ])
+        self.max_reward = 4
         
         # Load and modify the base XML
         self.assets_dir = pathlib.Path(__file__).parent / "assets"
@@ -41,54 +27,55 @@ class CustomTransferTask(TransferCubeTask):
             control_timestep=DT,
         )
     
+    def set_initial_pose(self, pose):
+        """Set the initial pose of the object."""
+        BOX_POSE[0] = pose
+    
     def _create_custom_scene(self):
         """Create a custom scene XML with our object."""
         # Create the assets directory if it doesn't exist
         self.assets_dir.mkdir(exist_ok=True)
         
-        # Create the custom scene XML
-        xml_content = f"""
-<mujoco model="bimanual_viperx_transfer">
+        # Create the custom scene XML - exactly matching the default one first
+        xml_content = """
+<mujoco>
     <include file="scene.xml"/>
     <include file="vx300s_dependencies.xml"/>
-    
-    <asset>
-        <mesh name="custom_object" file="{self.object_file}" scale="{self.object_scale} {self.object_scale} {self.object_scale}"/>
-    </asset>
-
     <worldbody>
-        <include file="vx300s_left.xml"/>
-        <include file="vx300s_right.xml"/>
-        
-        <body name="custom_object" pos="{self.object_pos[0]} {self.object_pos[1]} {self.object_pos[2]}" 
-              euler="{self.object_euler[0]} {self.object_euler[1]} {self.object_euler[2]}">
-            <inertial pos="0 0 0" mass="0.1" diaginertia="0.001 0.001 0.001"/>
-            <joint name="free_joint" type="free"/>
-            <geom type="mesh" mesh="custom_object" name="custom_object" rgba="1 0 0 1" mass="0.1"/>
+        <include file="vx300s_left.xml" />
+        <include file="vx300s_right.xml" />
+
+        <body name="box" pos="0.2 0.5 0.05">
+            <joint name="red_box_joint" type="free" frictionloss="0.01" />
+            <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
+            <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="red_box" rgba="1 0 0 1" />
         </body>
+
     </worldbody>
 
     <actuator>
-        <!-- Left arm -->
-        <position name="left_waist" joint="vx300s_left/waist" kp="10"/>
-        <position name="left_shoulder" joint="vx300s_left/shoulder" kp="10"/>
-        <position name="left_elbow" joint="vx300s_left/elbow" kp="10"/>
-        <position name="left_forearm_roll" joint="vx300s_left/forearm_roll" kp="1"/>
-        <position name="left_wrist_angle" joint="vx300s_left/wrist_angle" kp="1"/>
-        <position name="left_wrist_rotate" joint="vx300s_left/wrist_rotate" kp="1"/>
-        <position name="left_gripper" joint="vx300s_left/left_finger" kp="1"/>
-        <position name="left_gripper_mimic" joint="vx300s_left/right_finger" kp="1"/>
-        
-        <!-- Right arm -->
-        <position name="right_waist" joint="vx300s_right/waist" kp="10"/>
-        <position name="right_shoulder" joint="vx300s_right/shoulder" kp="10"/>
-        <position name="right_elbow" joint="vx300s_right/elbow" kp="10"/>
-        <position name="right_forearm_roll" joint="vx300s_right/forearm_roll" kp="1"/>
-        <position name="right_wrist_angle" joint="vx300s_right/wrist_angle" kp="1"/>
-        <position name="right_wrist_rotate" joint="vx300s_right/wrist_rotate" kp="1"/>
-        <position name="right_gripper" joint="vx300s_right/left_finger" kp="1"/>
-        <position name="right_gripper_mimic" joint="vx300s_right/right_finger" kp="1"/>
+        <position ctrllimited="true" ctrlrange="-3.14158 3.14158" joint="vx300s_left/waist" kp="800"  user="1" forcelimited="true" forcerange="-150 150"/>
+        <position ctrllimited="true" ctrlrange="-1.85005 1.25664" joint="vx300s_left/shoulder" kp="1600"  user="1" forcelimited="true" forcerange="-300 300"/>
+        <position ctrllimited="true" ctrlrange="-1.76278 1.6057" joint="vx300s_left/elbow" kp="800"  user="1" forcelimited="true" forcerange="-100 100"/>
+        <position ctrllimited="true" ctrlrange="-3.14158 3.14158" joint="vx300s_left/forearm_roll" kp="10"  user="1" forcelimited="true" forcerange="-100 100"/>
+        <position ctrllimited="true" ctrlrange="-1.8675 2.23402" joint="vx300s_left/wrist_angle" kp="50"  user="1"/>
+        <position ctrllimited="true" ctrlrange="-3.14158 3.14158" joint="vx300s_left/wrist_rotate" kp="20"  user="1"/>
+        <position ctrllimited="true" ctrlrange="0.021 0.057" joint="vx300s_left/left_finger" kp="200"  user="1"/>
+        <position ctrllimited="true" ctrlrange="-0.057 -0.021" joint="vx300s_left/right_finger" kp="200"  user="1"/>
+
+        <position ctrllimited="true" ctrlrange="-3.14158 3.14158" joint="vx300s_right/waist" kp="800"  user="1" forcelimited="true" forcerange="-150 150"/>
+        <position ctrllimited="true" ctrlrange="-1.85005 1.25664" joint="vx300s_right/shoulder" kp="1600"  user="1" forcelimited="true" forcerange="-300 300"/>
+        <position ctrllimited="true" ctrlrange="-1.76278 1.6057" joint="vx300s_right/elbow" kp="800"  user="1" forcelimited="true" forcerange="-100 100"/>
+        <position ctrllimited="true" ctrlrange="-3.14158 3.14158" joint="vx300s_right/forearm_roll" kp="10"  user="1" forcelimited="true" forcerange="-100 100"/>
+        <position ctrllimited="true" ctrlrange="-1.8675 2.23402" joint="vx300s_right/wrist_angle" kp="50"  user="1"/>
+        <position ctrllimited="true" ctrlrange="-3.14158 3.14158" joint="vx300s_right/wrist_rotate" kp="20"  user="1"/>
+        <position ctrllimited="true" ctrlrange="0.021 0.057" joint="vx300s_right/left_finger" kp="200"  user="1"/>
+        <position ctrllimited="true" ctrlrange="-0.057 -0.021" joint="vx300s_right/right_finger" kp="200"  user="1"/>
     </actuator>
+
+    <keyframe>
+        <key qpos="0 -0.96 1.16 0 -0.3 0 0.024 -0.024  0 -0.96 1.16 0 -0.3 0 0.024 -0.024  0.2 0.5 0.05 1 0 0 0"/>
+    </keyframe>
 </mujoco>
         """
         
@@ -117,9 +104,9 @@ class CustomTransferTask(TransferCubeTask):
             contact_pair = (name_geom_1, name_geom_2)
             all_contact_pairs.append(contact_pair)
 
-        touch_left_gripper = ("custom_object", "vx300s_left/10_left_gripper_finger") in all_contact_pairs
-        touch_right_gripper = ("custom_object", "vx300s_right/10_right_gripper_finger") in all_contact_pairs
-        touch_table = ("custom_object", "table") in all_contact_pairs
+        touch_left_gripper = ("red_box", "vx300s_left/10_left_gripper_finger") in all_contact_pairs
+        touch_right_gripper = ("red_box", "vx300s_right/10_right_gripper_finger") in all_contact_pairs
+        touch_table = ("red_box", "table") in all_contact_pairs
 
         reward = 0
         if touch_right_gripper:
