@@ -36,11 +36,12 @@ class CustomTransferTask(TransferCubeTask):
         # Create the assets directory if it doesn't exist
         self.assets_dir.mkdir(exist_ok=True)
         
-        # Create the custom scene XML - exactly matching the default one first
+        # Create the custom scene XML - using a simple box first
         xml_content = """
 <mujoco>
     <include file="scene.xml"/>
     <include file="vx300s_dependencies.xml"/>
+    
     <worldbody>
         <include file="vx300s_left.xml" />
         <include file="vx300s_right.xml" />
@@ -48,7 +49,10 @@ class CustomTransferTask(TransferCubeTask):
         <body name="box" pos="0.2 0.5 0.05">
             <joint name="red_box_joint" type="free" frictionloss="0.01" />
             <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
-            <geom condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" pos="0 0 0" size="0.02 0.02 0.02" type="box" name="red_box" rgba="1 0 0 1" />
+            <!-- Using a simple box first -->
+            <geom type="box" name="red_box" rgba="0 0 1 1" 
+                  size="0.02 0.02 0.04"
+                  condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
         </body>
 
     </worldbody>
