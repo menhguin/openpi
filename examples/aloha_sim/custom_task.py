@@ -50,7 +50,7 @@ class CustomTransferTask(TransferCubeTask):
             <joint name="red_box_joint" type="free" frictionloss="0.01" />
             <inertial pos="0 0 0" mass="0.05" diaginertia="0.002 0.002 0.002" />
             <!-- Using a simple box first -->
-            <geom type="box" name="red_box" rgba="0 0 1 1" 
+            <geom type="box" name="red_box" rgba="1 0 0 1" 
                   size="0.02 0.02 0.04"
                   condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
         </body>
